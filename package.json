@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/marionm/tracker-grapher",
+  "devDependencies": {
+    "grunt": "^0.4.5",
+  }
+}
