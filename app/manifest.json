@@ -3,5 +3,10 @@
 
   "name": "Tracker Grapher",
   "description": "Dependency metadata layer and grapher for Pivotal Tracker",
-  "version": "0.0.1"
+  "version": "0.0.1",
+
+  "permissions": [
+    "storage",
+    "https://*.pivotaltracker.com/"
+  ]
 }
