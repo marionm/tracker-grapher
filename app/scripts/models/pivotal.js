@@ -34,13 +34,24 @@ const Pivotal = {
     return this.get('accounts', { apiKey });
   },
 
-  makeRequest(method, path, options) {
-    options = options || {};
+  makeRequest(method, path, data, options) {
+    const takesData = method === 'post' || method === 'put';
+
+    if (takesData) {
+      options = options || {};
+      data = data || {};
+    } else {
+      options = data || {};
+    }
 
     const makeRequest = function(apiKey) {
       options.headers = options.headers || {};
       options.headers['X-TrackerToken'] = apiKey;
-      return axios[method](path, options);
+      if (takesData) {
+        return axios[method](path, data, options);
+      } else {
+        return axios[method](path, options);
+      }
     };
 
     if (options.apiKey) {
