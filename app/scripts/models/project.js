@@ -22,11 +22,13 @@ Project.loadAll = function() {
 
 Project.prototype.search = function(query) {
   return Pivotal.get(`projects/${this.id}/search`, {
-    params: { query }
+    params: {
+      fields: `stories(stories(${Story.FIELDS.join(',')}))`,
+      query
+    }
   }).then((response) => {
-    return response.data.stories.stories.map((storyData) => {
-      return new Story(storyData);
-    });
+    return Story.parseResponse(this, response.data.stories.stories);
+    // TODO: Keep loading dependencies/dependants of the results
   });
 };
 
