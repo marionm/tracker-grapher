@@ -4,6 +4,12 @@ const React = require('react');
 const ProjectSelector = require('./project-selector');
 
 const SearchInput = React.createClass({
+  getDefaultProps() {
+    return {
+      onSearch() {}
+    }
+  },
+
   getInitialState() {
     return {
       query: null,
@@ -22,7 +28,7 @@ const SearchInput = React.createClass({
   search() {
     if (this.state.project) {
       this.state.project.search(this.state.query).then((stories) => {
-        console.log(stories);
+        this.props.onSearch(stories);
       });
     }
   },

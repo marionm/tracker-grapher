@@ -34,11 +34,19 @@ const Popup = React.createClass({
     this.setState({ apiKey });
   },
 
+  onSearch(stories) {
+    chrome.extension.getBackgroundPage().stories = stories;
+    chrome.tabs.create({
+      url: chrome.extension.getURL('views/graph.html'),
+      selected: true
+    });
+  },
+
   render() {
     if (this.state.loading) {
       return (<div>Loading...</div>);
     } else if (this.state.apiKey) {
-      return (<SearchInput/>);
+      return (<SearchInput onSearch={this.onSearch}/>);
     } else {
       return (<ApiKeyInput onChange={this.onApiKeySet}/>);
     }
