@@ -10,6 +10,10 @@
     "https://*.pivotaltracker.com/"
   ],
 
+  // jointjs requires this - gross
+  // TODO: Figure out a better way
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+
   "browser_action": {
     "default_popup": "views/popup.html"
   },

@@ -1,6 +1,9 @@
 'use strict';
 
 const _ = require('lodash');
+const jointjs = require('jointjs');
+const Backbone = require('jointjs/node_modules/backbone');
+
 const Pivotal = require('./pivotal');
 
 const Story = function(project, response) {
@@ -160,6 +163,34 @@ Story.prototype.reload = function() {
   return Pivotal.get(getTasksPath(story)).then((response) => {
     this.parseResponse(response);
   });
+};
+
+
+
+Story.prototype.getGraphElement = function() {
+  this._graphNode = this._graphNode || new jointjs.shapes.basic.Rect({
+    size: {
+      width: 30,
+      height: 30
+    },
+
+    attrs: {
+      rect: {
+        rx: 2,
+        ry: 2,
+        fill: '#31D0C6',
+        stroke: '#4B4A67',
+        'stroke-width': 2
+      },
+
+      text: {
+        text: this.description,
+        fill: 'white'
+      }
+    }
+  });
+
+  return this._graphNode;
 };
 
 

@@ -2,6 +2,7 @@
   "repository": "https://github.com/marionm/tracker-grapher",
   "dependencies": {
     "axios": "~0.9.1",
+    "jointjs": "^0.9.7",
     "lodash": "~4.5.1",
     "react": "~0.14.7",
     "react-dom": "^0.14.7"
