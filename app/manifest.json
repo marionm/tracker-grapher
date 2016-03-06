@@ -14,5 +14,9 @@
     "default_popup": "views/popup.html"
   },
 
+  "background": {
+    "scripts": ["scripts/background.js"]
+  },
+
   "options_page": "views/options.html"
 }
