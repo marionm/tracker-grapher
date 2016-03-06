@@ -4,33 +4,8 @@ const _ = require('lodash');
 const Pivotal = require('./pivotal');
 
 const Story = function(project, response) {
-  this.id = response.id;
-  this.name = response.name;
-  this.description = response.description;
-  this.estimate = response.estimate
-  this.state = response.current_state;
-  this.url = response.url;
-
   this.project = project;
-
-  this.labels = response.labels.map((label) => {
-    return _.pick(label, 'id', 'name')
-  });
-
-  _.each(response.tasks, (task) => {
-    if (/^{ ?"tg":/.test(task.description)) {
-      this.taskId = task.id;
-
-      const metadata = JSON.parse(task.description).tg;
-      this.dependencyIds = metadata.dependencyIds;
-      this.dependantIds = metadata.dependantIds;
-
-      return false;
-    }
-  });
-
-  this.dependencyIds = this.dependencyIds || [];
-  this.dependantIds = this.dependantIds || [];
+  this.parseResponse(response);
 };
 
 Story.FIELDS = [
@@ -47,13 +22,53 @@ Story.FIELDS = [
 const stories = {};
 
 Story.parseResponse = function(project, response) {
-  return response.map((datum) => {
-    let story = stories[datum.id];
-    if (!story) {
-      story = new Story(project, datum);
-      stories[datum.id] = story;
+  _.each(response, (datum) => {
+    if (stories[datum.id]) {
+      stories[datum.id].parseResponse(response)
+    } else {
+      stories[datum.id] = new Story(project, datum);
     }
-    return story;
+  });
+  return stories;
+};
+
+Story.find = function(id) {
+  return stories[id];
+};
+
+
+
+Story.prototype.parseResponse = function(response) {
+  this.id = response.id;
+  this.name = response.name;
+  this.description = response.description;
+  this.estimate = response.estimate
+  this.state = response.current_state;
+  this.url = response.url;
+
+  this.labels = response.labels.map((label) => {
+    return _.pick(label, 'id', 'name')
+  });
+
+  this.dependantIds = [];
+  this.dependencyIds = [];
+
+  const regex = /^(Dependencies|Dependants): ((#\d+ ?)+)/;
+  _.each(response.tasks, (task) => {
+    const matches = regex.exec(task.description)
+    if (matches) {
+      const ids = matches[2].split(' ').map((id) => {
+        return id.replace('#', '');
+      });
+
+      if (matches[1] === 'Dependencies') {
+        this.dependencyIds = ids;
+        this.dependenciesTaskId = task.id;
+      } else {
+        this.dependantIds = ids;
+        this.dependantsTaskId = task.id;
+      }
+    }
   });
 };
 
@@ -83,7 +98,7 @@ Story.prototype.removeDependency = function(story) {
   story.removeDependant(this);
 };
 
-Story.prototype.removeDependency = function(story) {
+Story.prototype.removeDependant = function(story) {
   const index = this.dependantIds.indexOf(story.id);
   if (index >= 0) {
     this.dependantIds.splice(index, 1);
@@ -93,36 +108,60 @@ Story.prototype.removeDependency = function(story) {
   story.removeDependencies(this);
 };
 
+
+
+const getTaskPath = function(story, taskId) {
+  let path = `projects/${story.project.id}/stories/${story.id}/tasks/`;
+
+  if (taskId) {
+    path += taskId;
+  }
+
+  return path;
+};
+
+const saveTask = function(story, taskIdKey, idsKey) {
+  const ids = story[idsKey];
+  const taskId = story[taskIdKey];
+  const path = getTasksPath(story, taskId);
+
+  if (ids.length) {
+    const method = taskId ? 'put' : 'post';
+    return Pivotal[method](path, {
+      description: value
+    }).then((response) => {
+      story[taskId] = response.data.id;
+      story.modified = false;
+    });
+
+  } else {
+    if (taskId) {
+      return Pivotal.delete(path).then(() => {
+        delete story[taskId];
+      });
+    } else {
+      return Promise.resolve();
+    }
+  }
+};
+
 Story.prototype.save = function() {
-  if (!this.modified) {
+  if (this.modified) {
+    return Promise.all([
+      saveTask(this, 'dependantsTaskId', 'dependantIds'),
+      saveTask(this, 'dependenciesTaskId', 'dependencyIds')
+    ]);
+  } else {
     return Promise.resolve(this);
   }
+};
 
-  const metadata = {
-    tg: {
-      dependencyIds: this.dependencyIds,
-      dependantIds: this.dependantIds
-    }
-  };
-
-  let method;
-  let path = `projects/${this.project.id}/stories/${this.id}/tasks/`;
-  if (this.taskId) {
-    method = 'put';
-    path += this.taskId;
-  } else {
-    method = 'post';
-  }
-
-  // TODO: Reload the task first so remote changes can be merged
-  // TODO: Also save related stories? Or should there be a whole graph model?
-  return Pivotal[method](path, {
-    description: JSON.stringify(metadata)
-  }).then((response) => {
-    this.taskId = response.data.id;
-    this.modified = false;
-    return this;
+Story.prototype.reload = function() {
+  return Pivotal.get(getTasksPath(story)).then((response) => {
+    this.parseResponse(response);
   });
 };
+
+
 
 module.exports = Story;
