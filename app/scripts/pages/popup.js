@@ -34,8 +34,11 @@ const Popup = React.createClass({
     this.setState({ apiKey });
   },
 
-  onSearch(stories) {
-    chrome.extension.getBackgroundPage().stories = stories;
+  onSearch(project, query) {
+    const page = chrome.extension.getBackgroundPage();
+    page.projectId = project.id;
+    page.query = query;
+
     chrome.tabs.create({
       url: chrome.extension.getURL('views/graph.html'),
       selected: true

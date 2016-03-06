@@ -28,7 +28,6 @@ Project.prototype.search = function(query) {
     }
   }).then((response) => {
     return Story.parseResponse(this, response.data.stories.stories);
-    // TODO: Keep loading dependencies/dependants of the results
   });
 };
 

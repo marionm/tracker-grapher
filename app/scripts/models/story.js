@@ -1,8 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const jointjs = require('jointjs');
-const Backbone = require('jointjs/node_modules/backbone');
+const joint = require('jointjs');
 
 const Pivotal = require('./pivotal');
 
@@ -53,23 +52,23 @@ Story.prototype.parseResponse = function(response) {
     return _.pick(label, 'id', 'name')
   });
 
-  this.dependantIds = [];
+  this.dependentIds = [];
   this.dependencyIds = [];
 
-  const regex = /^(Dependencies|Dependants): ((#\d+ ?)+)/;
+  const regex = /^(Dependencies|Dependents): ((#\d+ ?)+)/;
   _.each(response.tasks, (task) => {
     const matches = regex.exec(task.description)
     if (matches) {
       const ids = matches[2].split(' ').map((id) => {
-        return id.replace('#', '');
+        return parseInt(id.replace('#', ''), 10);
       });
 
       if (matches[1] === 'Dependencies') {
         this.dependencyIds = ids;
         this.dependenciesTaskId = task.id;
       } else {
-        this.dependantIds = ids;
-        this.dependantsTaskId = task.id;
+        this.dependentIds = ids;
+        this.dependentsTaskId = task.id;
       }
     }
   });
@@ -78,16 +77,18 @@ Story.prototype.parseResponse = function(response) {
 Story.prototype.addDependency = function(story) {
   if (!this.dependencyIds.includes(story.id)) {
     this.dependencyIds.push(story.id);
-    story.addDependant(this);
     this.modified = true;
+
+    story.addDependent(this);
   }
 };
 
-Story.prototype.addDependant = function(story) {
-  if (!this.dependantIds.includes(story.id)) {
-    this.dependantIds.push(story.id);
-    story.addDependency(this);
+Story.prototype.addDependent = function(story) {
+  if (!this.dependentIds.includes(story.id)) {
+    this.dependentIds.push(story.id);
     this.modified = true;
+
+    story.addDependency(this);
   }
 };
 
@@ -96,24 +97,24 @@ Story.prototype.removeDependency = function(story) {
   if (index >= 0) {
     this.dependencyIds.splice(index, 1);
     this.modified = true;
-  }
 
-  story.removeDependant(this);
+    story.removeDependent(this);
+  }
 };
 
-Story.prototype.removeDependant = function(story) {
-  const index = this.dependantIds.indexOf(story.id);
+Story.prototype.removeDependent = function(story) {
+  const index = this.dependentIds.indexOf(story.id);
   if (index >= 0) {
-    this.dependantIds.splice(index, 1);
+    this.dependentIds.splice(index, 1);
     this.modified = true;
-  }
 
-  story.removeDependencies(this);
+    story.removeDependency(this);
+  }
 };
 
 
 
-const getTaskPath = function(story, taskId) {
+const getTasksPath = function(story, taskId) {
   let path = `projects/${story.project.id}/stories/${story.id}/tasks/`;
 
   if (taskId) {
@@ -123,15 +124,16 @@ const getTaskPath = function(story, taskId) {
   return path;
 };
 
-const saveTask = function(story, taskIdKey, idsKey) {
+const saveTask = function(story, taskIdKey, idsKey, taskPrefix) {
   const ids = story[idsKey];
   const taskId = story[taskIdKey];
   const path = getTasksPath(story, taskId);
 
   if (ids.length) {
     const method = taskId ? 'put' : 'post';
+    const value = ids.map((id) => `#${id}`).join(' ');
     return Pivotal[method](path, {
-      description: value
+      description: `${taskPrefix}: ${value}`
     }).then((response) => {
       story[taskId] = response.data.id;
       story.modified = false;
@@ -151,8 +153,8 @@ const saveTask = function(story, taskIdKey, idsKey) {
 Story.prototype.save = function() {
   if (this.modified) {
     return Promise.all([
-      saveTask(this, 'dependantsTaskId', 'dependantIds'),
-      saveTask(this, 'dependenciesTaskId', 'dependencyIds')
+      saveTask(this, 'dependentsTaskId', 'dependentIds', 'Dependents'),
+      saveTask(this, 'dependenciesTaskId', 'dependencyIds', 'Dependencies')
     ]);
   } else {
     return Promise.resolve(this);
@@ -163,34 +165,6 @@ Story.prototype.reload = function() {
   return Pivotal.get(getTasksPath(story)).then((response) => {
     this.parseResponse(response);
   });
-};
-
-
-
-Story.prototype.getGraphElement = function() {
-  this._graphNode = this._graphNode || new jointjs.shapes.basic.Rect({
-    size: {
-      width: 30,
-      height: 30
-    },
-
-    attrs: {
-      rect: {
-        rx: 2,
-        ry: 2,
-        fill: '#31D0C6',
-        stroke: '#4B4A67',
-        'stroke-width': 2
-      },
-
-      text: {
-        text: this.description,
-        fill: 'white'
-      }
-    }
-  });
-
-  return this._graphNode;
 };
 
 

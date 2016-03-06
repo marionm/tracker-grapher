@@ -26,10 +26,8 @@ const SearchInput = React.createClass({
   },
 
   search() {
-    if (this.state.project) {
-      this.state.project.search(this.state.query).then((stories) => {
-        this.props.onSearch(stories);
-      });
+    if (this.state.project && this.state.query) {
+      this.props.onSearch(this.state.project, this.state.query);
     }
   },
 
